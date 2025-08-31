@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🏴‍☠️ MRT Treasure Hunt - La Rochelle Map</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        }
+        
+        .header {
+            background: rgba(0,0,0,0.8);
+            color: white;
+            text-align: center;
+            padding: 20px;
+            position: relative;
+            z-index: 1000;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        #map {
+            height: calc(100vh - 120px);
+            width: 100%;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            z-index: 1000;
+            font-size: 14px;
+            max-width: 250px;
+        }
+        
+        .legend h4 {
+            margin: 0 0 10px 0;
+            color: #1e3c72;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        
+        .legend-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        
+        .treasure-popup {
+            font-family: Arial;
+            max-width: 250px;
+        }
+        
+        .treasure-popup h3 {
+            margin: 0 0 10px 0;
+            color: #1e3c72;
+            border-bottom: 2px solid #FFD700;
+            padding-bottom: 5px;
+        }
+        
+        .treasure-popup .reward {
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        .treasure-popup .location {
+            font-style: italic;
+            color: #666;
+            margin: 5px 0;
+        }
+        
+        .treasure-popup .difficulty {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: white;
+            display: inline-block;
+        }
+        
+        .easy { background: #4CAF50; }
+        .medium { background: #FF9800; }
+        .hard { background: #F44336; }
+        .legendary { background: #9C27B0; }
+        
+        .stats {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            z-index: 1000;
+            font-size: 14px;
+        }
+        
+        .stats h4 {
+            margin: 0 0 10px 0;
+            color: #1e3c72;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+        
+        .toggle-buttons {
+            position: absolute;
+            top: 20px;
+            right: 280px;
+            z-index: 1000;
+        }
+        
+        .toggle-btn {
+            background: rgba(255,255,255,0.9);
+            border: none;
+            padding: 8px 12px;
+            margin: 2px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-btn:hover {
+            background: #FFD700;
+            color: white;
+        }
+        
+        .toggle-btn.active {
+            background: #1e3c72;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏴‍☠️ MRT TREASURE HUNT - LA ROCHELLE</h1>
+        <p>⚓️ 50 trésors cachés dans la cité des tours • Tokens MRT réels à récupérer ! ⚓️</p>
+    </div>
+    
+    <div class="stats">
+        <h4>📊 Statistiques</h4>
+        <div class="stat-row"><span>🏆 Trésors totaux:</span><span id="total-treasures">50</span></div>
+        <div class="stat-row"><span>💰 Valeur totale:</span><span id="total-value">2,500 MRT</span></div>
+        <div class="stat-row"><span>🎯 Faciles:</span><span id="easy-count">20</span></div>
+        <div class="stat-row"><span>⚠️ Moyens:</span><span id="medium-count">20</span></div>
+        <div class="stat-row"><span>🔥 Difficiles:</span><span id="hard-count">8</span></div>
+        <div class="stat-row"><span>👑 Légendaires:</span><span id="legendary-count">2</span></div>
+    </div>
+    
+    <div class="toggle-buttons">
+        <button class="toggle-btn active" onclick="toggleDifficulty('all')">Tous</button>
+        <button class="toggle-btn" onclick="toggleDifficulty('easy')">Facile</button>
+        <button class="toggle-btn" onclick="toggleDifficulty('medium')">Moyen</button>
+        <button class="toggle-btn" onclick="toggleDifficulty('hard')">Difficile</button>
+        <button class="toggle-btn" onclick="toggleDifficulty('legendary')">Légendaire</button>
+    </div>
+    
+    <div id="map"></div>
+    
+    <div class="legend">
+        <h4>🗺️ Légende</h4>
+        <div class="legend-item">
+            <div class="legend-icon easy">💚</div>
+            <span>Facile (25-35 MRT)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-icon medium">🧡</div>
+            <span>Moyen (40-60 MRT)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-icon hard">❤️</div>
+            <span>Difficile (75-100 MRT)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-icon legendary">💜</div>
+            <span>Légendaire (150-250 MRT)</span>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Initialiser la carte centrée sur La Rochelle
+        const map = L.map('map').setView([46.1603, -1.1511], 13);
+        
+        // Ajouter le fond de carte
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Données des 50 trésors NFC à La Rochelle
+        const treasures = [
+            // Centre Historique - Vieux Port (15 trésors)
+            {id: 1, lat: 46.1603, lng: -1.1511, name: "Aquarium de La Rochelle", difficulty: "medium", reward: 50, hint: "Entrée principale, pilier droit"},
+            {id: 2, lat: 46.1580, lng: -1.1520, name: "Vieux Port - Quai Duperré", difficulty: "easy", reward: 30, hint: "Banc face aux tours"},
+            {id: 3, lat: 46.1585, lng: -1.1505, name: "Place de Verdun", difficulty: "easy", reward: 25, hint: "Fontaine centrale"},
+            {id: 4, lat: 46.1590, lng: -1.1495, name: "Rue du Palais", difficulty: "medium", reward: 45, hint: "Arcade n°23"},
+            {id: 5, lat: 46.1575, lng: -1.1530, name: "Quai Valin", difficulty: "easy", reward: 35, hint: "Bollard d'amarrage n°7"},
+            {id: 6, lat: 46.1595, lng: -1.1485, name: "Place du Marché", difficulty: "medium", reward: 55, hint: "Colonne des halles"},
+            {id: 7, lat: 46.1588, lng: -1.1500, name: "Rue Saint-Nicolas", difficulty: "easy", reward: 30, hint: "Façade maison à colombages"},
+            {id: 8, lat: 46.1578, lng: -1.1515, name: "Esplanade Saint-Jean-d'Acre", difficulty: "medium", reward: 40, hint: "Banc panoramique"},
+            {id: 9, lat: 46.1592, lng: -1.1490, name: "Place de l'Hôtel de Ville", difficulty: "hard", reward: 75, hint: "Base statue Fromentin"},
+            {id: 10, lat: 46.1582, lng: -1.1508, name: "Cours des Dames", difficulty: "easy", reward: 30, hint: "Arbre platane centenaire"},
+            {id: 11, lat: 46.1598, lng: -1.1475, name: "Rue de l'Escale", difficulty: "medium", reward: 50, hint: "Enseigne ancienne boulangerie"},
+            {id: 12, lat: 46.1570, lng: -1.1525, name: "Bassin des Chalutiers", difficulty: "easy", reward: 25, hint: "Cabane ostréiculteur"},
+            {id: 13, lat: 46.1600, lng: -1.1480, name: "Rue Chef de Ville", difficulty: "medium", reward: 45, hint: "Passage voûté médiéval"},
+            {id: 14, lat: 46.1586, lng: -1.1512, name: "Place des Petits Bancs", difficulty: "hard", reward: 85, hint: "Café historique, terrasse"},
+            {id: 15, lat: 46.1576, lng: -1.1518, name: "Mail Maritime", difficulty: "easy", reward: 35, hint: "Jardin public, banc face mer"},
+
+            // Tours de La Rochelle (8 trésors)
+            {id: 16, lat: 46.1561, lng: -1.1542, name: "Tour Saint-Nicolas", difficulty: "hard", reward: 100, hint: "Escalier extérieur, marche 15"},
+            {id: 17, lat: 46.1565, lng: -1.1535, name: "Tour de la Chaîne", difficulty: "hard", reward: 90, hint: "Base Nord-Est, pierre gravée"},
+            {id: 18, lat: 46.1555, lng: -1.1545, name: "Chenal de la Rochelle", difficulty: "medium", reward: 60, hint: "Entre les deux tours"},
+            {id: 19, lat: 46.1620, lng: -1.1465, name: "Tour de la Lanterne", difficulty: "legendary", reward: 200, hint: "Phare des 4 Sergents, côté terre"},
+            {id: 20, lat: 46.1625, lng: -1.1470, name: "Parc de la Lanterne", difficulty: "medium", reward: 50, hint: "Banc sous les tilleuls"},
+            {id: 21, lat: 46.1558, lng: -1.1538, name: "Pont des Tours", difficulty: "easy", reward: 30, hint: "Rampe d'accès piéton"},
+            {id: 22, lat: 46.1615, lng: -1.1475, name: "Avenue de la Porte Neuve", difficulty: "medium", reward: 45, hint: "Arrêt bus Lanterne"},
+            {id: 23, lat: 46.1568, lng: -1.1532, name: "Quai du Carénage", difficulty: "easy", reward: 35, hint: "Ancien chantier naval"},
+
+            // Quartier Saint-Nicolas (7 trésors)
+            {id: 24, lat: 46.1540, lng: -1.1580, name: "Église Saint-Nicolas", difficulty: "medium", reward: 55, hint: "Portail principal, colonne droite"},
+            {id: 25, lat: 46.1535, lng: -1.1590, name: "Rue Saint-Nicolas", difficulty: "easy", reward: 25, hint: "Maison n°47, volet bleu"},
+            {id: 26, lat: 46.1545, lng: -1.1575, name: "Place Saint-Nicolas", difficulty: "medium", reward: 40, hint: "Fontaine Wallace"},
+            {id: 27, lat: 46.1530, lng: -1.1595, name: "Avenue Carnot", difficulty: "easy", reward: 30, hint: "Pharmacie historique"},
+            {id: 28, lat: 46.1550, lng: -1.1570, name: "Rue des Gentilshommes", difficulty: "hard", reward: 80, hint: "Hôtel particulier XVIIe"},
+            {id: 29, lat: 46.1525, lng: -1.1600, name: "Square Valin", difficulty: "easy", reward: 35, hint: "Statue amiral, face port"},
+            {id: 30, lat: 46.1542, lng: -1.1585, name: "Rue de la Monnaie", difficulty: "medium", reward: 50, hint: "Ancienne Monnaie royale"},
+
+            // Front de Mer - Minimes (10 trésors)
+            {id: 31, lat: 46.1480, lng: -1.1650, name: "Port des Minimes", difficulty: "easy", reward: 30, hint: "Capitainerie, panneau info"},
+{id: 32, lat: 46.1475, lng: -1.1660, name: "Avenue des Minimes", difficulty: "medium", reward: 45, hint: "Arrêt bus Aquarium"},
+            {id: 33, lat: 46.1470, lng: -1.1670, name: "Plage des Minimes", difficulty: "easy", reward: 25, hint: "Poste de secours n°2"},
+            {id: 34, lat: 46.1485, lng: -1.1645, name: "Boulevard Winston Churchill", difficulty: "medium", reward: 55, hint: "Monument aux marins"},
+            {id: 35, lat: 46.1465, lng: -1.1675, name: "Avenue Jean Moulin", difficulty: "easy", reward: 35, hint: "Rond-point central"},
+            {id: 36, lat: 46.1490, lng: -1.1640, name: "Parc Franck Delmas", difficulty: "hard", reward: 75, hint: "Aire de jeux, toboggan rouge"},
+            {id: 37, lat: 46.1460, lng: -1.1680, name: "Centre Commercial Beaulieu", difficulty: "medium", reward: 40, hint: "Parking, borne n°15"},
+            {id: 38, lat: 46.1495, lng: -1.1635, name: "Avenue du Lazaret", difficulty: "easy", reward: 30, hint: "Ancien lazaret, mur d'enceinte"},
+            {id: 39, lat: 46.1455, lng: -1.1685, name: "Technoforum", difficulty: "medium", reward: 50, hint: "Entrée principale, sculpture"},
+            {id: 40, lat: 46.1500, lng: -1.1630, name: "Parc des Sports", difficulty: "easy", reward: 35, hint: "Stade Bonal, tribune Est"},
+
+            // Secteurs Périphériques (8 trésors)
+            {id: 41, lat: 46.1650, lng: -1.1400, name: "Gare SNCF La Rochelle", difficulty: "medium", reward: 60, hint: "Hall principal, horloge"},
+            {id: 42, lat: 46.1680, lng: -1.1350, name: "Centre Commercial Beaulac", difficulty: "easy", reward: 30, hint: "Parking niveau -1"},
+            {id: 43, lat: 46.1420, lng: -1.1750, name: "Université de La Rochelle", difficulty: "hard", reward: 85, hint: "Bibliothèque, salle lecture"},
+            {id: 44, lat: 46.1350, lng: -1.1800, name: "Aéroport La Rochelle-Île de Ré", difficulty: "medium", reward: 55, hint: "Terminal, zone départs"},
+            {id: 45, lat: 46.1750, lng: -1.1300, name: "Zone Industrielle Chef de Baie", difficulty: "easy", reward: 25, hint: "Rond-point des entreprises"},
+            {id: 46, lat: 46.1400, lng: -1.1200, name: "Parc de la Corderie Royale", difficulty: "hard", reward: 90, hint: "Ancien arsenal, forge"},
+            {id: 47, lat: 46.1380, lng: -1.1220, name: "Rochefort - Arsenal", difficulty: "legendary", reward: 250, hint: "Hermione, réplique navire"},
+            {id: 48, lat: 46.1720, lng: -1.1320, name: "Périgny", difficulty: "medium", reward: 45, hint: "Mairie, place centrale"},
+            
+            // Trésors Bonus Île de Ré (2 trésors)
+            {id: 49, lat: 46.2080, lng: -1.3420, name: "Saint-Martin-de-Ré", difficulty: "hard", reward: 100, hint: "Fortifications Vauban"},
+            {id: 50, lat: 46.1750, lng: -1.4150, name: "Phare des Baleines", difficulty: "hard", reward: 120, hint: "Base du phare, côté océan"}
+        ];
+        
+        // Stocker toutes les markers
+        let allMarkers = [];
+        let currentFilter = 'all';
+        
+        // Créer les markers pour chaque trésor
+        treasures.forEach(treasure => {
+            let icon = '💚';
+            let color = '#4CAF50';
+            
+            switch(treasure.difficulty) {
+                case 'easy': icon = '💚'; color = '#4CAF50'; break;
+                case 'medium': icon = '🧡'; color = '#FF9800'; break;
+                case 'hard': icon = '❤️'; color = '#F44336'; break;
+                case 'legendary': icon = '💜'; color = '#9C27B0'; break;
+            }
+            
+            const customIcon = L.divIcon({
+                html: <div style="background: ${color}; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3); font-size: 16px;">${icon}</div>,
+iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+            
+            const marker = L.marker([treasure.lat, treasure.lng], {icon: customIcon})
+                .bindPopup(
+                    <div class="treasure-popup">
+                        <h3>🏴‍☠️ ${treasure.name}</h3>
+                        <div class="reward">${treasure.reward} MRT Tokens</div>
+                        <div class="location">📍 ${treasure.hint}</div>
+                        <div class="difficulty ${treasure.difficulty}">${treasure.difficulty.toUpperCase()}</div>
+                        <br><br>
+                        <strong>Code:</strong> MRT-LR-${String(treasure.id).padStart(3, '0')}-${generateCode()}<br>
+                        <strong>Statut:</strong> <span style="color: orange;">🔍 À découvrir</span>
+                    </div>
+                )
+                .addTo(map);
+            
+            marker.treasureData = treasure;
+            allMarkers.push(marker);
+        });
+        
+        function generateCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let result = '';
+            for (let i = 0; i < 4; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+        
+        function toggleDifficulty(difficulty) {
+            // Mettre à jour les boutons
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            currentFilter = difficulty;
+            
+            // Filtrer les markers
+            allMarkers.forEach(marker => {
+                if (difficulty === 'all' || marker.treasureData.difficulty === difficulty) {
+                    map.addLayer(marker);
+                } else {
+                    map.removeLayer(marker);
+                }
+            });
+        }
+        
+        // Calculer et afficher les statistiques
+        function updateStats() {
+            const stats = {
+                total: treasures.length,
+                totalValue: treasures.reduce((sum, t) => sum + t.reward, 0),
+                easy: treasures.filter(t => t.difficulty === 'easy').length,
+                medium: treasures.filter(t => t.difficulty === 'medium').length,
+                hard: treasures.filter(t => t.difficulty === 'hard').length,
+                legendary: treasures.filter(t => t.difficulty === 'legendary').length
+            };
+            
+            document.getElementById('total-treasures').textContent = stats.total;
+            document.getElementById('total-value').textContent = stats.totalValue.toLocaleString() + ' MRT';
+            document.getElementById('easy-count').textContent = stats.easy;
+            document.getElementById('medium-count').textContent = stats.medium;
+            document.getElementById('hard-count').textContent = stats.hard;
+            document.getElementById('legendary-count').textContent = stats.legendary;
+        }
+        
+        updateStats();
+        
+        // Ajouter des zones d'intérêt
+        const zones = [
+            {center: [46.1585, -1.1505], radius: 300, name: "Centre Historique", color: '#FFD700'},
+            {center: [46.1563, -1.1538], radius: 200, name: "Tours de La Rochelle", color: '#FF4444'},
+            {center: [46.1475, -1.1655], radius: 400, name: "Port des Minimes", color: '#4444FF'},
+            {center: [46.1380, -1.1220], radius: 500, name: "Rochefort-Arsenal", color: '#9C27B0'}
+        ];
+        
+        zones.forEach(zone => {
+            L.circle([zone.center[0], zone.center[1]], {
+                color: zone.color,
+                fillColor: zone.color,
+                fillOpacity: 0.1,
+                radius: zone.radius,
+                weight: 2,
+                dashArray: '5, 5'
+            }).addTo(map).bindPopup(<strong>${zone.name}</strong><br>Zone de concentration des trésors);
+        });
+        
+        // Ajouter point de départ
+        const startIcon = L.divIcon({
+            html: '<div style="background: #FFD700; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 4px solid white; box-shadow: 0 4px 15px rgba(0,0,0,0.4); font-size: 20px;">🏁</div>',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+        
+        L.marker([46.1603, -1.1511], {icon: startIcon})
+            .addTo(map)
+            .bindPopup('<div c
+            .openPopup();
+    </script>
+</body>
+</html>
